@@ -1,0 +1,166 @@
+classDiagram
+    class PaymentController {
+        -CryptoComPaymentService _paymentService
+        -IPaymentRepository _repository
+        +CreatePayment(CreatePaymentRequest) Task~PaymentResponse~
+        +GetPaymentStatus(string orderId) Task~PaymentStatusResponse~
+        +HandleWebhook(WebhookPayload) Task~IActionResult~
+        +GetSupportedCurrencies() Task~List~string~~
+        +CancelPayment(string orderId) Task~bool~
+    }
+    
+    class CryptoComPaymentService {
+        -HttpClient _httpClient
+        -string _apiKey
+        -string _secretKey
+        -string _baseUrl
+        -ILogger _logger
+        +CreatePaymentAsync(CreatePaymentRequest) Task~PaymentResponse~
+        +GetPaymentStatusAsync(string orderId) Task~PaymentStatusResponse~
+        +CancelPaymentAsync(string orderId) Task~bool~
+        +GetSupportedCurrenciesAsync() Task~List~string~~
+        +VerifyWebhookSignature(string payload, string signature) bool
+        -GenerateSignature(string payload) string
+        -BuildAuthHeaders(string payload) Dictionary
+        -HandleApiResponse(HttpResponseMessage) Task~T~
+    }
+    
+    class IPaymentRepository {
+        <<interface>>
+        +SavePaymentAsync(Payment) Task~Payment~
+        +GetPaymentByOrderIdAsync(string orderId) Task~Payment~
+        +UpdatePaymentStatusAsync(string orderId, PaymentStatus) Task~bool~
+        +GetPaymentsByDateRangeAsync(DateTime, DateTime) Task~List~Payment~~
+        +GetPendingPaymentsAsync() Task~List~Payment~~
+    }
+    
+    class PaymentRepository {
+        -DbContext _context
+        +SavePaymentAsync(Payment) Task~Payment~
+        +GetPaymentByOrderIdAsync(string orderId) Task~Payment~
+        +UpdatePaymentStatusAsync(string orderId, PaymentStatus) Task~bool~
+        +GetPaymentsByDateRangeAsync(DateTime, DateTime) Task~List~Payment~~
+        +GetPendingPaymentsAsync() Task~List~Payment~~
+    }
+    
+    class WebhookHandler {
+        -CryptoComPaymentService _paymentService
+        -IPaymentRepository _repository
+        -INotificationService _notificationService
+        +ProcessWebhookAsync(WebhookPayload) Task~bool~
+        +ValidateWebhook(string payload, string signature) bool
+        -HandlePaymentCompleted(WebhookPayload) Task
+        -HandlePaymentFailed(WebhookPayload) Task
+        -HandlePaymentExpired(WebhookPayload) Task
+    }
+    
+    class Payment {
+        +string Id
+        +string OrderId
+        +decimal Amount
+        +string Currency
+        +PaymentStatus Status
+        +string Description
+        +string PaymentUrl
+        +string QRCode
+        +DateTime CreatedAt
+        +DateTime? ExpiresAt
+        +DateTime? PaidAt
+        +string? TransactionHash
+        +string? CustomerWalletAddress
+        +Dictionary~string,string~ Metadata
+        +UpdateStatus(PaymentStatus) void
+        +IsExpired() bool
+    }
+    
+    class CreatePaymentRequest {
+        +string Currency
+        +decimal Amount
+        +string Description
+        +string? OrderId
+        +string? ReturnUrl
+        +string? CancelUrl
+        +Dictionary~string,string~? Metadata
+        +Validate() bool
+    }
+    
+    class PaymentResponse {
+        +string OrderId
+        +string PaymentUrl
+        +string QRCode
+        +decimal Amount
+        +string Currency
+        +string Status
+        +DateTime CreatedAt
+        +DateTime? ExpiresAt
+    }
+    
+    class PaymentStatusResponse {
+        +string OrderId
+        +string Status
+        +decimal Amount
+        +string Currency
+        +string? TransactionHash
+        +DateTime CreatedAt
+        +DateTime? PaidAt
+        +DateTime? ExpiresAt
+    }
+    
+    class WebhookPayload {
+        +string OrderId
+        +string Status
+        +decimal Amount
+        +string Currency
+        +string? TransactionHash
+        +string? WalletAddress
+        +DateTime Timestamp
+        +Dictionary~string,object~ Data
+    }
+    
+    class PaymentStatus {
+        <<enumeration>>
+        Pending
+        Processing
+        Completed
+        Failed
+        Expired
+        Cancelled
+        Refunded
+    }
+    
+    class CryptoComConfig {
+        +string ApiKey
+        +string SecretKey
+        +string BaseUrl
+        +int TimeoutSeconds
+        +bool UseSandbox
+        +string WebhookSecret
+    }
+    
+    class INotificationService {
+        <<interface>>
+        +SendPaymentNotificationAsync(Payment) Task
+        +SendWebhookAlertAsync(string message) Task
+    }
+    
+    class SignatureHelper {
+        <<static>>
+        +GenerateHmacSha256(string payload, string secret)$ string
+        +VerifySignature(string payload, string signature, string secret)$ bool
+        +GenerateTimestamp()$ long
+    }
+    
+    PaymentController --> CryptoComPaymentService
+    PaymentController --> IPaymentRepository
+    PaymentController --> WebhookHandler
+    CryptoComPaymentService --> CryptoComConfig
+    CryptoComPaymentService --> SignatureHelper
+    WebhookHandler --> CryptoComPaymentService
+    WebhookHandler --> IPaymentRepository
+    WebhookHandler --> INotificationService
+    PaymentRepository ..|> IPaymentRepository
+    Payment --> PaymentStatus
+    CreatePaymentRequest --> PaymentResponse
+    PaymentStatusResponse --> PaymentStatus
+    WebhookPayload --> PaymentStatus
+    IPaymentRepository --> Payment
