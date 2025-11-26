@@ -1,0 +1,64 @@
+graph TB
+    subgraph "Client Application"
+        A[POS Terminal/Web App]
+    end
+    
+    subgraph "Your API Server"
+        B[API Controller]
+        C[CryptoComPaymentService]
+        D[Payment Repository]
+        E[Webhook Handler]
+    end
+    
+    subgraph "Crypto.com Payment API"
+        F[Payment Gateway]
+        G[Webhook Service]
+    end
+    
+    subgraph "Database"
+        H[(Payment Records)]
+    end
+    
+    subgraph "Customer"
+        I[Customer Wallet]
+    end
+    
+    %% Payment Creation Flow
+    A -->|1. Create Payment Request| B
+    B -->|2. Validate & Process| C
+    C -->|3. Generate Signature| C
+    C -->|4. POST /payments| F
+    F -->|5. Payment URL & QR| C
+    C -->|6. Save Order| D
+    D -->|7. Store| H
+    C -->|8. Return Payment Details| B
+    B -->|9. Payment URL & QR Code| A
+    A -->|10. Display QR Code| I
+    
+    %% Payment Execution Flow
+    I -->|11. Scan & Pay| F
+    F -->|12. Process Transaction| F
+    F -->|13. Send Webhook| G
+    G -->|14. POST /webhook| E
+    E -->|15. Verify Signature| E
+    E -->|16. Update Status| D
+    D -->|17. Update DB| H
+    E -->|18. Notify| A
+    
+    %% Status Check Flow
+    A -.->|19. Check Status| B
+    B -.->|20. Query| C
+    C -.->|21. GET /payments/{id}| F
+    F -.->|22. Status Response| C
+    C -.->|23. Return Status| B
+    B -.->|24. Display Status| A
+    
+    style A fill:#e1f5ff
+    style B fill:#fff4e1
+    style C fill:#fff4e1
+    style D fill:#fff4e1
+    style E fill:#fff4e1
+    style F fill:#ffe1e1
+    style G fill:#ffe1e1
+    style H fill:#e1ffe1
+    style I fill:#f0e1ff
